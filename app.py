@@ -1,323 +1,434 @@
 
 import streamlit as st
 import pandas as pd
-import html
 
 st.set_page_config(
-    page_title="Priority Scheduling with Aging Simulator",
-    page_icon="⏱️",
+    page_title="ShopEase | Online Shopping",
+    page_icon="🛍️",
     layout="wide"
 )
 
-st.title("Priority Scheduling with Aging Simulator")
-st.write(
-    "An Operating System scheduling simulator that uses "
-    "priority scheduling with aging to reduce starvation."
-)
+# -------------------- PRODUCTS --------------------
+PRODUCTS = [
+    {
+        "id": 1,
+        "name": "Wireless Headphones",
+        "category": "Electronics",
+        "price": 1499,
+        "emoji": "🎧",
+        "description": "Comfortable wireless headphones with rich sound."
+    },
+    {
+        "id": 2,
+        "name": "Smart Watch",
+        "category": "Electronics",
+        "price": 2199,
+        "emoji": "⌚",
+        "description": "A stylish watch for everyday activities."
+    },
+    {
+        "id": 3,
+        "name": "Running Shoes",
+        "category": "Fashion",
+        "price": 1799,
+        "emoji": "👟",
+        "description": "Lightweight shoes for walking and running."
+    },
+    {
+        "id": 4,
+        "name": "Casual T-Shirt",
+        "category": "Fashion",
+        "price": 599,
+        "emoji": "👕",
+        "description": "A comfortable everyday cotton T-shirt."
+    },
+    {
+        "id": 5,
+        "name": "Travel Backpack",
+        "category": "Accessories",
+        "price": 999,
+        "emoji": "🎒",
+        "description": "A practical backpack for travel and college."
+    },
+    {
+        "id": 6,
+        "name": "Sunglasses",
+        "category": "Accessories",
+        "price": 799,
+        "emoji": "🕶️",
+        "description": "Modern sunglasses for everyday style."
+    },
+    {
+        "id": 7,
+        "name": "Coffee Maker",
+        "category": "Home",
+        "price": 2499,
+        "emoji": "☕",
+        "description": "Make your favorite coffee at home."
+    },
+    {
+        "id": 8,
+        "name": "Desk Lamp",
+        "category": "Home",
+        "price": 699,
+        "emoji": "💡",
+        "description": "A useful lamp for studying and working."
+    },
+]
 
-st.info(
-    "Priority 1 is the highest priority. "
-    "Aging improves a waiting process's priority by reducing "
-    "its priority number after each aging interval."
-)
+# -------------------- INITIALIZE SESSION --------------------
+if "cart" not in st.session_state:
+    st.session_state.cart = {}
 
-# -------------------------------
-# Process Input
-# -------------------------------
-st.header("1. Enter Process Details")
+if "orders" not in st.session_state:
+    st.session_state.orders = []
 
-default_data = pd.DataFrame({
-    "Process ID": ["P1", "P2", "P3", "P4"],
-    "Arrival Time": [0, 1, 2, 3],
-    "Burst Time": [7, 4, 2, 3],
-    "Priority": [3, 1, 4, 2]
-})
+if "page" not in st.session_state:
+    st.session_state.page = "Home"
 
-process_df = st.data_editor(
-    default_data,
-    num_rows="dynamic",
-    use_container_width=True,
-    key="process_editor",
-    column_config={
-        "Process ID": st.column_config.TextColumn(
-            "Process ID", required=True
-        ),
-        "Arrival Time": st.column_config.NumberColumn(
-            "Arrival Time", min_value=0, step=1, required=True
-        ),
-        "Burst Time": st.column_config.NumberColumn(
-            "Burst Time", min_value=1, step=1, required=True
-        ),
-        "Priority": st.column_config.NumberColumn(
-            "Priority (1 = highest)",
-            min_value=1,
-            step=1,
-            required=True
+
+def money(amount):
+    return f"₹{amount:,.2f}"
+
+
+def add_to_cart(product_id):
+    cart = st.session_state.cart
+    cart[product_id] = cart.get(product_id, 0) + 1
+
+
+def cart_total():
+    total = 0
+    for product_id, quantity in st.session_state.cart.items():
+        product = next(
+            p for p in PRODUCTS if p["id"] == product_id
         )
+        total += product["price"] * quantity
+    return total
+
+
+# -------------------- CUSTOM STYLE --------------------
+st.markdown("""
+<style>
+    .main-title {
+        font-size: 38px;
+        font-weight: 800;
+        color: #2563eb;
     }
-)
-
-aging_interval = st.number_input(
-    "Aging Interval",
-    min_value=1,
-    value=3,
-    step=1,
-    help="Number of waiting time units needed to improve priority by one level."
-)
-
-# -------------------------------
-# Scheduling Algorithm
-# -------------------------------
-def priority_scheduling(processes, aging_interval):
-    remaining = processes.copy()
-    current_time = 0
-    timeline = []
-    results = []
-
-    while remaining:
-
-        # Find processes that have arrived
-        ready = [
-            p for p in remaining
-            if p["Arrival Time"] <= current_time
-        ]
-
-        # If no process has arrived, CPU remains idle
-        if not ready:
-            next_arrival = min(
-                p["Arrival Time"] for p in remaining
-            )
-
-            timeline.append({
-                "Process": "IDLE",
-                "Start": current_time,
-                "End": next_arrival
-            })
-
-            current_time = next_arrival
-
-            ready = [
-                p for p in remaining
-                if p["Arrival Time"] <= current_time
-            ]
-
-        # Calculate effective priority for waiting processes
-        def effective_priority(p):
-            waiting = current_time - p["Arrival Time"]
-            improvement = waiting // aging_interval
-
-            return max(
-                1,
-                p["Priority"] - improvement
-            )
-
-        # Lower priority number means higher priority
-        selected = min(
-            ready,
-            key=lambda p: (
-                effective_priority(p),
-                p["Arrival Time"],
-                p["Order"]
-            )
-        )
-
-        start_time = current_time
-        completion_time = start_time + selected["Burst Time"]
-
-        waiting_time = start_time - selected["Arrival Time"]
-        turnaround_time = completion_time - selected["Arrival Time"]
-
-        results.append({
-            "Process ID": selected["Process ID"],
-            "Arrival Time": selected["Arrival Time"],
-            "Burst Time": selected["Burst Time"],
-            "Original Priority": selected["Priority"],
-            "Effective Priority": effective_priority(selected),
-            "Start Time": start_time,
-            "Completion Time": completion_time,
-            "Waiting Time": waiting_time,
-            "Turnaround Time": turnaround_time
-        })
-
-        timeline.append({
-            "Process": selected["Process ID"],
-            "Start": start_time,
-            "End": completion_time
-        })
-
-        current_time = completion_time
-        remaining.remove(selected)
-
-    return pd.DataFrame(results), timeline
+    .subtitle {
+        color: #64748b;
+        font-size: 17px;
+    }
+    .product-box {
+        padding: 15px;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        background-color: #ffffff;
+        margin-bottom: 10px;
+    }
+    div.stButton > button {
+        border-radius: 8px;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 
-# -------------------------------
-# Run Simulation
-# -------------------------------
-if st.button("Run Scheduling Simulation", type="primary"):
+# -------------------- SIDEBAR NAVIGATION --------------------
+with st.sidebar:
+    st.markdown("# 🛍️ ShopEase")
+    st.caption("Your online shopping destination")
 
-    if process_df.empty:
-        st.error("Please enter at least one process.")
-        st.stop()
+    if st.button("🏠 Home", use_container_width=True):
+        st.session_state.page = "Home"
 
-    if process_df.isnull().any().any():
-        st.error("Please fill in all process details.")
-        st.stop()
+    if st.button("🛒 Shopping Cart", use_container_width=True):
+        st.session_state.page = "Cart"
 
-    process_df = process_df.copy()
-    process_df["Process ID"] = (
-        process_df["Process ID"].astype(str).str.strip()
+    if st.button("📦 My Orders", use_container_width=True):
+        st.session_state.page = "Orders"
+
+    st.divider()
+
+    item_count = sum(st.session_state.cart.values())
+    st.metric("Cart Items", item_count)
+    st.metric("Cart Total", money(cart_total()))
+
+
+# -------------------- HOME PAGE --------------------
+if st.session_state.page == "Home":
+    st.markdown(
+        '<div class="main-title">Welcome to ShopEase!</div>',
+        unsafe_allow_html=True
+    )
+    st.markdown(
+        '<div class="subtitle">'
+        'Discover products for your everyday needs.'
+        '</div>',
+        unsafe_allow_html=True
     )
 
-    if (process_df["Process ID"] == "").any():
-        st.error("Process IDs cannot be empty.")
-        st.stop()
-
-    if process_df["Process ID"].duplicated().any():
-        st.error("Each Process ID must be unique.")
-        st.stop()
-
-    numeric_columns = ["Arrival Time", "Burst Time", "Priority"]
-
-    for col in numeric_columns:
-        values = pd.to_numeric(process_df[col], errors="coerce")
-
-        if values.isnull().any():
-            st.error(f"{col} must contain valid numbers.")
-            st.stop()
-
-        if (values % 1 != 0).any():
-            st.error(f"{col} must contain whole numbers.")
-            st.stop()
-
-        process_df[col] = values.astype(int)
-
-    if (process_df["Arrival Time"] < 0).any():
-        st.error("Arrival time cannot be negative.")
-        st.stop()
-
-    if (process_df["Burst Time"] <= 0).any():
-        st.error("Burst time must be greater than zero.")
-        st.stop()
-
-    if (process_df["Priority"] < 1).any():
-        st.error("Priority must be at least 1.")
-        st.stop()
-
-    processes = []
-
-    for index, row in process_df.reset_index(drop=True).iterrows():
-        processes.append({
-            "Process ID": row["Process ID"],
-            "Arrival Time": int(row["Arrival Time"]),
-            "Burst Time": int(row["Burst Time"]),
-            "Priority": int(row["Priority"]),
-            "Order": index
-        })
-
-    results, timeline = priority_scheduling(
-        processes, int(aging_interval)
+    st.write("")
+    st.info(
+        "🎉 Explore our collection and add your favorite "
+        "products to the shopping cart!"
     )
-
-    # -------------------------------
-    # Display Results
-    # -------------------------------
-    st.header("2. Scheduling Results")
 
     col1, col2, col3 = st.columns(3)
-
-    col1.metric(
-        "Total Processes",
-        len(results)
-    )
-
+    col1.metric("Products Available", len(PRODUCTS))
     col2.metric(
-        "Average Waiting Time",
-        f"{results['Waiting Time'].mean():.2f}"
+        "Categories",
+        len(set(p["category"] for p in PRODUCTS))
+    )
+    col3.metric("Cart Items", sum(st.session_state.cart.values()))
+
+    st.divider()
+    st.header("🛍️ Shop Our Products")
+
+    search = st.text_input(
+        "🔍 Search products",
+        placeholder="Search headphones, shoes, watch..."
     )
 
-    col3.metric(
-        "Average Turnaround Time",
-        f"{results['Turnaround Time'].mean():.2f}"
+    categories = ["All"] + sorted(
+        set(p["category"] for p in PRODUCTS)
     )
 
-    st.dataframe(
-        results,
-        use_container_width=True,
-        hide_index=True
+    selected_category = st.selectbox(
+        "Choose a category",
+        categories
     )
 
-    # -------------------------------
-    # Gantt Chart
-    # -------------------------------
-    st.header("3. Gantt Chart")
+    filtered_products = PRODUCTS.copy()
 
-    total_time = max(item["End"] for item in timeline)
+    if search:
+        filtered_products = [
+            p for p in filtered_products
+            if search.lower() in p["name"].lower()
+            or search.lower() in p["description"].lower()
+            or search.lower() in p["category"].lower()
+        ]
 
-    if total_time > 0:
-        blocks = []
+    if selected_category != "All":
+        filtered_products = [
+            p for p in filtered_products
+            if p["category"] == selected_category
+        ]
 
-        for item in timeline:
-            width = (
-                (item["End"] - item["Start"])
-                / total_time * 100
+    if not filtered_products:
+        st.warning("No products found. Try another search.")
+    else:
+        columns = st.columns(3)
+
+        for index, product in enumerate(filtered_products):
+            with columns[index % 3]:
+                with st.container(border=True):
+                    st.markdown(
+                        f"<div style='text-align:center;"
+                        f"font-size:65px'>{product['emoji']}</div>",
+                        unsafe_allow_html=True
+                    )
+                    st.subheader(product["name"])
+                    st.caption(product["category"])
+                    st.write(product["description"])
+                    st.markdown(
+                        f"### {money(product['price'])}"
+                    )
+
+                    if st.button(
+                        "➕ Add to Cart",
+                        key=f"add_{product['id']}",
+                        use_container_width=True
+                    ):
+                        add_to_cart(product["id"])
+                        st.toast(
+                            f"{product['name']} added to cart!"
+                        )
+
+
+# -------------------- CART PAGE --------------------
+elif st.session_state.page == "Cart":
+    st.title("🛒 Your Shopping Cart")
+
+    cart = st.session_state.cart
+
+    if not cart:
+        st.info("Your cart is empty. Visit Home to shop.")
+        if st.button("Continue Shopping"):
+            st.session_state.page = "Home"
+            st.rerun()
+    else:
+        for product_id in list(cart.keys()):
+            product = next(
+                p for p in PRODUCTS if p["id"] == product_id
             )
 
-            process_name = html.escape(item["Process"])
-
-            blocks.append(
-                f'<div style="width:{width}%;'
-                'box-sizing:border-box;'
-                'border:1px solid white;'
-                'background-color:#dbeafe;'
-                'color:#1e3a8a;'
-                'padding:12px 2px;'
-                'text-align:center;'
-                'overflow-wrap:anywhere;'
-                'font-weight:bold;">'
-                f'{process_name}<br>'
-                f'<small>{item["Start"]} - {item["End"]}</small>'
-                '</div>'
+            col1, col2, col3, col4 = st.columns(
+                [3, 2, 2, 1]
             )
 
-        st.markdown(
-            '<div style="display:flex;width:100%;'
-            'overflow:hidden;border-radius:6px;">'
-            + "".join(blocks) +
-            '</div>',
-            unsafe_allow_html=True
+            with col1:
+                st.write(
+                    f"{product['emoji']} **{product['name']}**"
+                )
+                st.caption(money(product["price"]) + " each")
+
+            with col2:
+                new_quantity = st.number_input(
+                    "Quantity",
+                    min_value=0,
+                    max_value=99,
+                    value=cart[product_id],
+                    step=1,
+                    key=f"qty_{product_id}"
+                )
+
+                if new_quantity != cart[product_id]:
+                    if new_quantity == 0:
+                        del st.session_state.cart[product_id]
+                    else:
+                        st.session_state.cart[product_id] = new_quantity
+                    st.rerun()
+
+            with col3:
+                st.write(
+                    "**Subtotal**",
+                    money(product["price"] * cart[product_id])
+                )
+
+            with col4:
+                if st.button(
+                    "🗑️",
+                    key=f"remove_{product_id}",
+                    help="Remove this product"
+                ):
+                    del st.session_state.cart[product_id]
+                    st.rerun()
+
+            st.divider()
+
+        total = cart_total()
+        st.subheader(f"Total: {money(total)}")
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            if st.button("Continue Shopping", use_container_width=True):
+                st.session_state.page = "Home"
+                st.rerun()
+
+        with col2:
+            if st.button(
+                "Proceed to Checkout",
+                type="primary",
+                use_container_width=True
+            ):
+                st.session_state.page = "Checkout"
+                st.rerun()
+
+
+# -------------------- CHECKOUT PAGE --------------------
+elif st.session_state.page == "Checkout":
+    st.title("📦 Checkout")
+
+    if not st.session_state.cart:
+        st.warning("Your cart is empty. Add products first.")
+        if st.button("Go Shopping"):
+            st.session_state.page = "Home"
+            st.rerun()
+    else:
+        st.write("Enter your details to place a demo order.")
+        st.write("Order total:", money(cart_total()))
+
+        with st.form("checkout_form"):
+            customer_name = st.text_input("Full Name")
+            email = st.text_input("Email Address")
+            phone = st.text_input("Phone Number")
+            address = st.text_area("Delivery Address")
+
+            submitted = st.form_submit_button(
+                "Place Demo Order",
+                type="primary"
+            )
+
+        if submitted:
+            if not all([
+                customer_name.strip(),
+                email.strip(),
+                phone.strip(),
+                address.strip()
+            ]):
+                st.error("Please fill in all the fields.")
+            elif "@" not in email or "." not in email.split("@")[-1]:
+                st.error("Please enter a valid email address.")
+            else:
+                order_items = []
+
+                for product_id, quantity in st.session_state.cart.items():
+                    product = next(
+                        p for p in PRODUCTS
+                        if p["id"] == product_id
+                    )
+                    order_items.append({
+                        "Product": product["name"],
+                        "Quantity": quantity,
+                        "Unit Price": product["price"],
+                        "Subtotal": product["price"] * quantity
+                    })
+
+                order = {
+                    "Order Number": len(st.session_state.orders) + 1,
+                    "Customer": customer_name.strip(),
+                    "Email": email.strip(),
+                    "Phone": phone.strip(),
+                    "Address": address.strip(),
+                    "Items": order_items,
+                    "Total": cart_total()
+                }
+
+                st.session_state.orders.append(order)
+                st.session_state.cart = {}
+                st.session_state.page = "Orders"
+
+                st.success(
+                    f"Demo order #{order['Order Number']} placed!"
+                )
+                st.rerun()
+
+
+# -------------------- ORDER HISTORY --------------------
+elif st.session_state.page == "Orders":
+    st.title("📦 My Orders")
+
+    if not st.session_state.orders:
+        st.info(
+            "You haven't placed any orders in this session yet."
         )
+    else:
+        for order in reversed(st.session_state.orders):
+            with st.expander(
+                f"Order #{order['Order Number']} — "
+                f"{money(order['Total'])}"
+            ):
+                st.write("Customer:", order["Customer"])
+                st.write("Email:", order["Email"])
+                st.write("Delivery address:", order["Address"])
 
-    # -------------------------------
-    # Execution Order
-    # -------------------------------
-    st.header("4. Execution Order")
+                order_df = pd.DataFrame(order["Items"])
+                st.dataframe(
+                    order_df,
+                    use_container_width=True,
+                    hide_index=True
+                )
 
-    execution_order = " → ".join(
-        item["Process"] for item in timeline
-    )
+                st.write("**Total:**", money(order["Total"]))
 
-    st.success(execution_order)
+    if st.button("Continue Shopping"):
+        st.session_state.page = "Home"
+        st.rerun()
 
-    # -------------------------------
-    # Download Results
-    # -------------------------------
-    st.header("5. Download Results")
 
-    csv_data = results.to_csv(index=False).encode("utf-8")
-
-    st.download_button(
-        label="Download Results as CSV",
-        data=csv_data,
-        file_name="priority_scheduling_results.csv",
-        mime="text/csv"
-    )
-
-    st.success("Scheduling simulation completed successfully!")
-
+# -------------------- FOOTER --------------------
 st.divider()
-
 st.caption(
-    "Priority Scheduling with Aging Simulator | "
-    "Python + Streamlit | Non-preemptive scheduling"
+    "ShopEase E-Commerce Demo | Built with Python and Streamlit. "
+    "Orders are stored in session memory; no real payments are processed."
 )
