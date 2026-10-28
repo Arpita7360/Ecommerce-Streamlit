@@ -4,19 +4,20 @@ import sqlite3
 import hashlib
 import pandas as pd
 from datetime import datetime
+from urllib.parse import quote
 
-# =========================================================
-# 1. PAGE SETTINGS
-# =========================================================
+# ==================================================
+# 1. PAGE CONFIGURATION
+# ==================================================
 st.set_page_config(
-    page_title="ShopEase | Online Shopping",
+    page_title="ShopEase Online Shopping",
     page_icon="🛍️",
     layout="wide"
 )
 
-# =========================================================
+# ==================================================
 # 2. COLOURFUL BLACK THEME
-# =========================================================
+# ==================================================
 st.markdown("""
 <style>
 .stApp {
@@ -65,10 +66,10 @@ div[data-testid="stSelectbox"] {
 </style>
 """, unsafe_allow_html=True)
 
-# =========================================================
+# ==================================================
 # 3. DATABASE
-# Uses users_v2 to avoid the old users table schema error.
-# =========================================================
+# Separate table avoids the old users table mismatch.
+# ==================================================
 @st.cache_resource
 def get_database():
     connection = sqlite3.connect(
@@ -87,28 +88,45 @@ def get_database():
 db = get_database()
 
 def hash_password(password):
+    # Demo hash only. Production apps should use a password
+    # hashing library such as argon2 or bcrypt.
     return hashlib.sha256(password.encode("utf-8")).hexdigest()
 
-# =========================================================
-# 4. PRODUCT CATALOGUE
-# =========================================================
+# ==================================================
+# 4. PRODUCT DATA
+# ==================================================
 products = []
 
-def add_product(category, subcategory, name, price, image_id, description):
+def add_product(category, subcategory, name, price, image, description):
     products.append({
         "id": len(products) + 1,
         "category": category,
         "subcategory": subcategory,
         "name": name,
         "price": price,
-        "image": (
-            f"https://images.unsplash.com/{image_id}"
-            "?auto=format&fit=crop&w=700&q=80"
-        ),
+        "image": image,
         "description": description
     })
 
-# ---------------- MEN'S FASHION ----------------
+def unsplash(photo_id):
+    return (
+        f"https://images.unsplash.com/{photo_id}"
+        "?auto=format&fit=crop&w=700&q=80"
+    )
+
+def keyword_image(keyword, lock_number):
+    # Keyword-based external image search.
+    # Internet is required; the returned image may vary.
+    return (
+        "https://loremflickr.com/700/500/"
+        + quote(keyword, safe=",")
+        + "?lock="
+        + str(lock_number)
+    )
+
+# ==================================================
+# 5. FASHION - MEN
+# ==================================================
 men_items = [
     ("Shirt", 699, "photo-1596755094514-f87e34085b2c"),
     ("T-Shirt", 399, "photo-1521572163474-6864f9cf17ab"),
@@ -118,13 +136,15 @@ men_items = [
     ("Blazer", 1899, "photo-1591047139829-d91aecb6caea")
 ]
 
-for name, price, image in men_items:
+for name, price, photo_id in men_items:
     add_product(
-        "Fashion", "Men", name, price, image,
+        "Fashion", "Men", name, price, unsplash(photo_id),
         f"Men's {name.lower()} collection."
     )
 
-# ---------------- WOMEN'S FASHION ----------------
+# ==================================================
+# 6. FASHION - WOMEN
+# ==================================================
 women_items = [
     ("Kurties", 699, "photo-1583391733956-6c78276477e9"),
     ("Jeans", 899, "photo-1541099649105-f69ad21f3246"),
@@ -135,13 +155,15 @@ women_items = [
     ("Anarkali Gown", 1999, "photo-1595777457583-95e059d581b8")
 ]
 
-for name, price, image in women_items:
+for name, price, photo_id in women_items:
     add_product(
-        "Fashion", "Women", name, price, image,
+        "Fashion", "Women", name, price, unsplash(photo_id),
         f"Women's {name.lower()} collection."
     )
 
-# ---------------- MOBILE BRANDS ----------------
+# ==================================================
+# 7. MOBILES
+# ==================================================
 mobile_items = [
     ("Samsung", 15999, "photo-1511707171634-5f897ff02aa9"),
     ("Vivo", 12999, "photo-1598327105666-5b89351aff97"),
@@ -151,13 +173,16 @@ mobile_items = [
     ("Motorola", 14999, "photo-1598327105666-5b89351aff97")
 ]
 
-for name, price, image in mobile_items:
+for name, price, photo_id in mobile_items:
     add_product(
-        "Mobiles", name, name + " Smartphone", price, image,
-        f"{name} smartphone. Check specifications before purchase."
+        "Mobiles", name, name + " Smartphone",
+        price, unsplash(photo_id),
+        f"{name} smartphone. Check the actual model specifications before purchase."
     )
 
-# ---------------- ELECTRONICS ----------------
+# ==================================================
+# 8. ELECTRONICS
+# ==================================================
 electronics_items = [
     ("Laptop", 45999, "photo-1496181133206-80ce9b88a853"),
     ("Monitor", 12999, "photo-1527443224154-c4a3942d3acf"),
@@ -165,13 +190,16 @@ electronics_items = [
     ("Projector", 18999, "photo-1528395874238-34ebe249b3f2")
 ]
 
-for name, price, image in electronics_items:
+for name, price, photo_id in electronics_items:
     add_product(
-        "Electronics", "Electronics", name, price, image,
+        "Electronics", "Electronics", name,
+        price, unsplash(photo_id),
         f"{name} for your home, study or office."
     )
 
-# ---------------- ACCESSORIES ----------------
+# ==================================================
+# 9. ACCESSORIES
+# ==================================================
 accessory_items = [
     ("Men's Watch", 1299, "photo-1523275335684-37898b6baf30"),
     ("Women's Watch", 1599, "photo-1524592094714-0f0654e20314"),
@@ -182,13 +210,16 @@ accessory_items = [
     ("Rings", 399, "photo-1605100804763-247f67b3557e")
 ]
 
-for name, price, image in accessory_items:
+for name, price, photo_id in accessory_items:
     add_product(
-        "Accessories", "Accessories", name, price, image,
+        "Accessories", "Accessories", name,
+        price, unsplash(photo_id),
         f"Stylish {name.lower()} for everyday wear and gifting."
     )
 
-# ---------------- TEN TYPES OF TOYS ----------------
+# ==================================================
+# 10. TOYS - 10 TYPES
+# ==================================================
 toy_items = [
     ("Teddy Bear", 499, "photo-1559454403-b8fb88521f11"),
     ("Toy Car", 299, "photo-1594787318286-3d835c1d207f"),
@@ -202,51 +233,68 @@ toy_items = [
     ("Toy Kitchen Set", 899, "photo-1596461404969-9ae70f2830c1")
 ]
 
-for name, price, image in toy_items:
+for name, price, photo_id in toy_items:
     add_product(
-        "Toys", "Toys", name, price, image,
-        f"{name} for playtime and gifting."
+        "Toys", "Toys", name, price, unsplash(photo_id),
+        f"{name} for playtime and gifting. Check the recommended age."
     )
 
-# ---------------- FOOD & HEALTHCARE ----------------
+# ==================================================
+# 11. FOOD & HEALTHCARE - DRY FRUITS AND CHOCOLATE
+# ==================================================
+# These use food-specific image searches rather than
+# generic electronics/fashion images.
 food_items = [
-    ("Almonds", 499, "photo-1508061253366-f7da158b6d46"),
-    ("Cashew Nuts", 599, "photo-1505576633757-0ac1084af824"),
-    ("Pistachios", 549, "photo-1511497584788-876760111969"),
-    ("Walnuts", 499, "photo-1508061253366-f7da158b6d46"),
-    ("Dates", 349, "photo-1559181567-c3190ca9959b"),
-    ("Dark Chocolate", 249, "photo-1548907040-4d42baa9c5a3"),
-    ("Milk Chocolate", 199, "photo-1511381939415-e44015466834")
+    ("Almonds", 499, "almonds,nuts,food"),
+    ("Cashew Nuts", 599, "cashew,nuts,food"),
+    ("Pistachios", 549, "pistachios,nuts,food"),
+    ("Walnuts", 499, "walnuts,nuts,food"),
+    ("Dates", 349, "dates,fruit,food"),
+    ("Dark Chocolate", 249, "dark,chocolate"),
+    ("Milk Chocolate", 199, "milk,chocolate")
 ]
 
-for name, price, image in food_items:
+for name, price, keyword in food_items:
     add_product(
-        "Food & Healthcare", "Food", name, price, image,
-        f"Packaged {name.lower()}. Check ingredients and expiry date."
+        "Food & Healthcare",
+        "Food",
+        name,
+        price,
+        keyword_image(keyword, len(products) + 1),
+        f"{name}. Check ingredients, packaging, allergy information "
+        "and expiry date before purchase."
     )
 
+# ==================================================
+# 12. FOOD & HEALTHCARE - EIGHT SEED TYPES
+# ==================================================
 seed_items = [
-    ("Chia Seeds", 199, "photo-1515543904379-3d757afe72e4"),
-    ("Flax Seeds", 149, "photo-1603048719539-9ecb4aa395e3"),
-    ("Pumpkin Seeds", 249, "photo-1515543904379-3d757afe72e4"),
-    ("Sunflower Seeds", 179, "photo-1471943311424-646960669fbc"),
-    ("Sesame Seeds", 129, "photo-1603048719539-9ecb4aa395e3"),
-    ("Watermelon Seeds", 199, "photo-1515543904379-3d757afe72e4"),
-    ("Basil Seeds", 149, "photo-1515543904379-3d757afe72e4"),
-    ("Hemp Seeds", 299, "photo-1603048719539-9ecb4aa395e3")
+    ("Chia Seeds", 199, "chia,seeds,food"),
+    ("Flax Seeds", 149, "flax,seeds,food"),
+    ("Pumpkin Seeds", 249, "pumpkin,seeds,food"),
+    ("Sunflower Seeds", 179, "sunflower,seeds,food"),
+    ("Sesame Seeds", 129, "sesame,seeds,food"),
+    ("Watermelon Seeds", 199, "watermelon,seeds,food"),
+    ("Basil Seeds", 149, "basil,seeds,food"),
+    ("Hemp Seeds", 299, "hemp,seeds,food")
 ]
 
-for name, price, image in seed_items:
+for name, price, keyword in seed_items:
     add_product(
-        "Food & Healthcare", "Seeds", name, price, image,
-        f"{name} for food use. Check the package and allergy information."
+        "Food & Healthcare",
+        "Seeds",
+        name,
+        price,
+        keyword_image(keyword, len(products) + 1),
+        f"{name} for food use. Check the package, ingredients "
+        "and allergy information."
     )
 
 df = pd.DataFrame(products)
 
-# =========================================================
-# 5. SESSION STATE
-# =========================================================
+# ==================================================
+# 13. SESSION STATE
+# ==================================================
 defaults = {
     "user": None,
     "cart": {},
@@ -256,32 +304,33 @@ defaults = {
     "last_order": None
 }
 
-for key, value in defaults.items():
+for key, default in defaults.items():
     if key not in st.session_state:
-        st.session_state[key] = value
+        st.session_state[key] = default
 
-# =========================================================
-# 6. WEBSITE HEADER
-# =========================================================
+# ==================================================
+# 14. WEBSITE HEADER
+# ==================================================
 st.markdown("""
 <div class="hero">
     <h1>🛍️ ShopEase</h1>
-    <h3>Fashion • Mobiles • Electronics • Accessories</h3>
+    <h3>Fashion • Mobiles • Electronics • Toys • More</h3>
     <p>Discover your style. Find your favourites. Shop with ease!</p>
 </div>
 """, unsafe_allow_html=True)
 
-# =========================================================
-# 7. CREATE ACCOUNT AND LOGIN
-# =========================================================
+# ==================================================
+# 15. CREATE ACCOUNT AND LOGIN
+# ==================================================
 if not st.session_state.user:
+    create_tab, login_tab = st.tabs(
+        ["✨ Create Account", "🔐 Login"]
+    )
 
-    tab1, tab2 = st.tabs(["✨ Create Account", "🔐 Login"])
-
-    with tab1:
+    with create_tab:
         st.subheader("Create Your Account")
 
-        with st.form("create_account_form"):
+        with st.form("register_form"):
             new_username = st.text_input("Create username")
             new_password = st.text_input(
                 "Create password", type="password"
@@ -289,14 +338,14 @@ if not st.session_state.user:
             confirm_password = st.text_input(
                 "Confirm password", type="password"
             )
-            create_account = st.form_submit_button("Create Account")
+            register = st.form_submit_button("Create Account")
 
-        if create_account:
+        if register:
             if not new_username.strip() or not new_password:
                 st.error("Please enter a username and password.")
 
             elif len(new_password) < 6:
-                st.error("Password must contain at least 6 characters.")
+                st.error("Password must be at least 6 characters.")
 
             elif new_password != confirm_password:
                 st.error("Passwords do not match.")
@@ -320,49 +369,45 @@ if not st.session_state.user:
 
                 except sqlite3.IntegrityError:
                     st.error(
-                        "This username already exists. Choose another."
+                        "Username already exists. Please choose another."
                     )
 
                 except sqlite3.Error:
                     st.error(
-                        "Database problem. Please check the app logs."
+                        "Database error. Please check Streamlit Cloud logs."
                     )
 
-    with tab2:
+    with login_tab:
         st.subheader("Login to ShopEase")
 
         with st.form("login_form"):
-            login_username = st.text_input("Username")
-            login_password = st.text_input(
-                "Password", type="password"
-            )
-            login_button = st.form_submit_button("Login")
+            username = st.text_input("Username")
+            password = st.text_input("Password", type="password")
+            login = st.form_submit_button("Login")
 
-        if login_button:
+        if login:
             try:
                 record = db.execute(
                     """
-                    SELECT password_hash FROM users_v2
+                    SELECT password_hash
+                    FROM users_v2
                     WHERE username = ?
                     """,
-                    (login_username.strip(),)
+                    (username.strip(),)
                 ).fetchone()
 
-                if (
-                    record
-                    and record[0] == hash_password(login_password)
-                ):
-                    st.session_state.user = login_username.strip()
+                if record and record[0] == hash_password(password):
+                    st.session_state.user = username.strip()
                     st.success("Login successful!")
                     st.rerun()
                 else:
                     st.error("Incorrect username or password.")
 
             except sqlite3.Error:
-                st.error("Database problem. Please check the app logs.")
+                st.error("Database error. Please check the app logs.")
 
     st.markdown("---")
-    st.subheader("🌈 Explore ShopEase")
+    st.subheader("🌈 Welcome to ShopEase")
     st.write(
         "👕 Fashion  |  📱 Mobiles  |  💻 Electronics  |  "
         "⌚ Accessories  |  🧸 Toys  |  🥜 Food & Healthcare"
@@ -370,14 +415,14 @@ if not st.session_state.user:
     st.caption("Create an account or log in to start shopping.")
     st.stop()
 
-# =========================================================
-# 8. SIDEBAR
-# =========================================================
+# ==================================================
+# 16. SIDEBAR NAVIGATION
+# ==================================================
 st.sidebar.title("🛍️ ShopEase")
-st.sidebar.write("Welcome, " + st.session_state.user + "!")
+st.sidebar.success("Welcome, " + st.session_state.user + "!")
 
 page = st.sidebar.radio(
-    "Choose a page",
+    "Navigate",
     [
         "Home",
         "Fashion",
@@ -394,20 +439,18 @@ page = st.sidebar.radio(
 
 if st.sidebar.button("Logout"):
     st.session_state.user = None
-    st.session_state.cart = {}
-    st.session_state.wishlist = []
     st.rerun()
 
-# =========================================================
-# 9. HOME PAGE
-# =========================================================
+# ==================================================
+# 17. HOME PAGE
+# ==================================================
 if page == "Home":
     st.subheader("✨ Shop by Category")
 
     categories = [
         ("Fashion", "👗", "Men's and women's clothing"),
-        ("Mobiles", "📱", "Popular smartphone brands"),
-        ("Electronics", "💻", "Laptops and office devices"),
+        ("Mobiles", "📱", "Popular mobile brands"),
+        ("Electronics", "💻", "Laptop and office devices"),
         ("Accessories", "⌚", "Watches and jewellery"),
         ("Toys", "🧸", "Toys and games"),
         ("Food & Healthcare", "🥜", "Dry fruits, chocolate and seeds")
@@ -417,7 +460,10 @@ if page == "Home":
 
     for i, (category, emoji, description) in enumerate(categories):
         with cols[i % 3]:
-            st.markdown('<div class="product-card">', unsafe_allow_html=True)
+            st.markdown(
+                '<div class="product-card">',
+                unsafe_allow_html=True
+            )
             st.subheader(emoji + " " + category)
             st.write(description)
             st.markdown("</div>", unsafe_allow_html=True)
@@ -441,12 +487,16 @@ if page == "Home":
                 )
                 st.success("Added to cart!")
 
-# =========================================================
-# 10. CATEGORY PAGES
-# =========================================================
+# ==================================================
+# 18. CATEGORY PAGES AND PRODUCT RATINGS
+# ==================================================
 category_pages = [
-    "Fashion", "Mobiles", "Electronics",
-    "Accessories", "Toys", "Food & Healthcare"
+    "Fashion",
+    "Mobiles",
+    "Electronics",
+    "Accessories",
+    "Toys",
+    "Food & Healthcare"
 ]
 
 if page in category_pages:
@@ -457,20 +507,20 @@ if page in category_pages:
 
     if page == "Fashion":
         audience = st.selectbox(
-            "Select collection", ["All", "Men", "Women"]
+            "Choose collection", ["All", "Men", "Women"]
         )
         if audience != "All":
             view = view[view["subcategory"] == audience]
 
     elif page == "Mobiles":
         brands = ["All"] + sorted(view["subcategory"].unique().tolist())
-        brand = st.selectbox("Select mobile brand", brands)
+        brand = st.selectbox("Choose mobile brand", brands)
         if brand != "All":
             view = view[view["subcategory"] == brand]
 
     elif page == "Food & Healthcare":
         food_type = st.selectbox(
-            "Select type", ["All", "Food", "Seeds"]
+            "Choose type", ["All", "Food", "Seeds"]
         )
         if food_type != "All":
             view = view[view["subcategory"] == food_type]
@@ -500,15 +550,15 @@ if page in category_pages:
 
                 ratings = st.session_state.ratings.get(pid, [])
                 if ratings:
-                    avg_rating = sum(ratings) / len(ratings)
+                    average = sum(ratings) / len(ratings)
                     st.write(
-                        f"⭐ {avg_rating:.1f}/5 ({len(ratings)} ratings)"
+                        f"⭐ {average:.1f}/5 ({len(ratings)} ratings)"
                     )
                 else:
                     st.write("⭐ No ratings yet")
 
                 with st.expander("Rate this product"):
-                    rating = st.select_slider(
+                    stars = st.select_slider(
                         "Your rating",
                         options=[1, 2, 3, 4, 5],
                         value=5,
@@ -520,8 +570,8 @@ if page in category_pages:
                     ):
                         st.session_state.ratings.setdefault(
                             pid, []
-                        ).append(rating)
-                        st.success("Thank you for your rating!")
+                        ).append(stars)
+                        st.success("Thank you for rating!")
                         st.rerun()
 
                 if st.button("🛒 Add to Cart", key=f"add_{pid}"):
@@ -539,29 +589,28 @@ if page in category_pages:
 
                 st.markdown("</div>", unsafe_allow_html=True)
 
-# =========================================================
-# 11. WISHLIST
-# =========================================================
+# ==================================================
+# 19. WISHLIST
+# ==================================================
 if page == "Wishlist":
     st.subheader("💜 My Wishlist")
+    wishlist_df = df[df["id"].isin(st.session_state.wishlist)]
 
-    wish_df = df[df["id"].isin(st.session_state.wishlist)]
-
-    if wish_df.empty:
+    if wishlist_df.empty:
         st.info("Your wishlist is empty.")
 
-    for _, p in wish_df.iterrows():
+    for _, p in wishlist_df.iterrows():
         pid = int(p["id"])
-        col1, col2 = st.columns([1, 3])
+        c1, c2 = st.columns([1, 3])
 
-        with col1:
+        with c1:
             st.image(p["image"], use_container_width=True)
 
-        with col2:
+        with c2:
             st.write("**" + p["name"] + "**")
             st.write(f"₹{p['price']:,}")
 
-            if st.button("Add to Cart", key=f"wish_add_{pid}"):
+            if st.button("Add to Cart", key=f"wish_cart_{pid}"):
                 st.session_state.cart[pid] = (
                     st.session_state.cart.get(pid, 0) + 1
                 )
@@ -571,9 +620,9 @@ if page == "Wishlist":
                 st.session_state.wishlist.remove(pid)
                 st.rerun()
 
-# =========================================================
-# 12. CART
-# =========================================================
+# ==================================================
+# 20. CART AND CHECKOUT
+# ==================================================
 if page == "Cart":
     st.subheader("🛒 My Shopping Cart")
 
@@ -581,29 +630,30 @@ if page == "Cart":
         st.info("Your cart is empty. Start shopping!")
 
     else:
-        total = 0
         cart_items = df[
             df["id"].isin(st.session_state.cart.keys())
-        ]
+        ].copy()
+
+        total = 0
 
         for _, p in cart_items.iterrows():
             pid = int(p["id"])
-            col1, col2, col3 = st.columns([1, 2, 1])
+            c1, c2, c3 = st.columns([1, 2, 1])
 
-            with col1:
+            with c1:
                 st.image(p["image"], use_container_width=True)
 
-            with col2:
+            with c2:
                 st.write("**" + p["name"] + "**")
-                st.write(f"Price: ₹{p['price']:,}")
+                st.write(f"₹{p['price']:,} each")
 
-            with col3:
+            with c3:
                 qty = st.number_input(
                     "Quantity",
                     min_value=1,
                     max_value=99,
                     value=int(st.session_state.cart[pid]),
-                    key=f"qty_{pid}"
+                    key=f"quantity_{pid}"
                 )
                 st.session_state.cart[pid] = int(qty)
 
@@ -611,14 +661,13 @@ if page == "Cart":
                     del st.session_state.cart[pid]
                     st.rerun()
 
-            total += p["price"] * st.session_state.cart[pid]
+            total += int(p["price"]) * st.session_state.cart[pid]
 
         st.markdown("---")
         st.subheader(f"Total: ₹{total:,}")
 
         with st.form("checkout_form"):
             st.subheader("📦 Delivery Details")
-
             customer_name = st.text_input("Full name")
             phone = st.text_input("Phone number")
             address = st.text_area("Delivery address")
@@ -631,9 +680,12 @@ if page == "Cart":
             place_order = st.form_submit_button("Place Order")
 
         if place_order:
-            if not customer_name.strip() or not phone.strip() or not address.strip():
+            if (
+                not customer_name.strip()
+                or not phone.strip()
+                or not address.strip()
+            ):
                 st.error("Please fill in all delivery details.")
-
             else:
                 order_items = []
 
@@ -661,37 +713,37 @@ if page == "Cart":
                 st.session_state.orders.append(order)
                 st.session_state.last_order = order
                 st.session_state.cart = {}
+
                 st.success("🎉 Order placed successfully!")
                 st.rerun()
 
-# =========================================================
-# 13. ORDER CONFIRMATION
-# =========================================================
-if st.session_state.last_order:
-    order = st.session_state.last_order
+# ==================================================
+# 21. LATEST ORDER CONFIRMATION
+# ==================================================
+order = st.session_state.last_order
 
-    if order["username"] == st.session_state.user:
-        st.subheader("📋 Latest Order Confirmation")
-        st.write("Order date:", order["date"])
+if order and order["username"] == st.session_state.user:
+    st.subheader("📋 Latest Order Confirmation")
+    st.write("Order date:", order["date"])
 
-        for item in order["items"]:
-            subtotal = item["price"] * item["quantity"]
-            st.write(
-                f"{item['name']} × {item['quantity']} = ₹{subtotal:,}"
-            )
+    for item in order["items"]:
+        subtotal = item["price"] * item["quantity"]
+        st.write(
+            f"{item['name']} × {item['quantity']} = ₹{subtotal:,}"
+        )
 
-        st.write(f"**Order total: ₹{order['total']:,}**")
-        st.write("Payment method:", order["payment"])
+    st.write(f"**Order total: ₹{order['total']:,}**")
+    st.write("Payment method:", order["payment"])
 
-# =========================================================
-# 14. ORDER HISTORY
-# =========================================================
+# ==================================================
+# 22. ORDER HISTORY
+# ==================================================
 if page == "My Orders":
     st.subheader("📦 My Orders")
 
     user_orders = [
-        order for order in st.session_state.orders
-        if order["username"] == st.session_state.user
+        o for o in st.session_state.orders
+        if o["username"] == st.session_state.user
     ]
 
     if not user_orders:
@@ -703,17 +755,17 @@ if page == "My Orders":
         ):
             for item in order["items"]:
                 st.write(
-                    f"{item['name']} × {item['quantity']} "
-                    f"— ₹{item['price'] * item['quantity']:,}"
+                    f"{item['name']} × {item['quantity']} — "
+                    f"₹{item['price'] * item['quantity']:,}"
                 )
 
             st.write("Payment:", order["payment"])
             st.write("Customer:", order["customer"])
             st.write("Address:", order["address"])
 
-# =========================================================
-# 15. FOOTER
-# =========================================================
+# ==================================================
+# 23. FOOTER
+# ==================================================
 st.markdown("---")
 st.caption(
     "ShopEase | Demo shopping website | Sample prices | "
